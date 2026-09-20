@@ -6,3 +6,4 @@ html[data-theme=dark]{--paper:#0a0d0b;--ink:#f4f1e9;--muted:#adb5ab;--panel:#111
 
 .import-buttons button.is-selected,.guide-tabs button.is-selected{background:var(--ink);color:var(--paper)}
 .language{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}.language button{border:0;background:transparent;color:var(--muted);padding:6px 8px;border-radius:999px;cursor:pointer;font:500 11px 'DM Mono';letter-spacing:.1em}.language button[aria-pressed=true]{background:var(--ink);color:var(--paper)}.help-heading{display:flex;align-items:center;justify-content:space-between;gap:20px}.help-heading .text-button{font-size:12px}
+.brand .mark{display:inline-block;width:28px;height:28px;vertical-align:middle;margin-right:10px}.brand .mark[aria-hidden=true]{pointer-events:none}

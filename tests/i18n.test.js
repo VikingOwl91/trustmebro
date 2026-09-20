@@ -23,10 +23,12 @@ assert.equal(boot('fr-FR').window.document.documentElement.lang, 'en');
 assert.equal(boot('en-US', 'de').window.document.documentElement.lang, 'de');
 {
   const german = boot('de-DE').window;
-  assert.equal(german.document.querySelector('.brand').textContent.replace(/\s+/g, ' ').trim(), '✳ TRUSTMEBRO');
+  assert.equal(german.document.querySelector('.brand').textContent.replace(/\s+/g, ' ').trim(), 'TRUSTMEBRO');
+  assert.equal(german.document.querySelector('.brand .mark').getAttribute('aria-hidden'), 'true');
   assert.equal(german.document.querySelector('.brand').getAttribute('aria-label'), 'TRUSTMEBRO Startseite');
   const english = boot('en-US').window;
-  assert.equal(english.document.querySelector('.brand').textContent.replace(/\s+/g, ' ').trim(), '✳ TRUSTMEBRO');
+  assert.equal(english.document.querySelector('.brand').textContent.replace(/\s+/g, ' ').trim(), 'TRUSTMEBRO');
+  assert.equal(english.document.querySelector('.brand .mark').getAttribute('aria-hidden'), 'true');
   assert.equal(english.document.querySelector('.brand').getAttribute('aria-label'), 'TRUSTMEBRO home');
 }
 
