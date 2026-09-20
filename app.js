@@ -30,6 +30,8 @@
     $('#exportButton')?.addEventListener('click', exportReport);
     document.addEventListener('click', handleCopyClick);
     document.addEventListener('keydown', handleShortcut);
+    window.addEventListener('hashchange', openReportView);
+    openReportView();
   }
 
   function initTheme() {
@@ -119,6 +121,7 @@
   function copyReport() { if (state.report) copyText(JSON.stringify(state.report, null, 2)); }
   function exportReport() { if (!state.report) return; const blob = new Blob([JSON.stringify(state.report, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'trustmebro-report.json'; link.click(); URL.revokeObjectURL(link.href); toast('JSON export created locally'); }
   function handleShortcut(event) { if (event.target.matches('input, textarea, select, [contenteditable]') || event.ctrlKey || event.metaKey || event.altKey) return; if (event.key.toLowerCase() === 'o') { event.preventDefault(); $('#fileInput')?.click(); } if (event.key.toLowerCase() === 'n') $('#resetButton')?.click(); if (event.key === 'Escape') window.scrollTo({ top: 0 }); if (event.key.toLowerCase() === 'c') copyReport(); if (event.key.toLowerCase() === 'e') exportReport(); }
+  function openReportView() { const target = location.hash ? document.querySelector(location.hash) : null; if (target?.tagName === 'DETAILS') target.open = true; }
   function toast(message) { const element = $('#toast'); if (!element) return; element.textContent = message; element.classList.add('show'); clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => element.classList.remove('show'), 1600); }
   function setState(message, kind = '') { const element = $('#state'); if (element) { element.textContent = message; element.dataset.kind = kind; } }
   function fail(message) { setState(message, 'error'); const title = $('#dropTitle'); if (title) title.textContent = 'Try another .eml file'; }
