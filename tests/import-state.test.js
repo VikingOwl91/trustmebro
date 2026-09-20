@@ -22,7 +22,7 @@ for (const theme of ['light', 'dark']) {
 
   for (const mode of ['file', 'source', 'headers', 'body', 'file']) {
     window.document.querySelector(`[data-import="${mode}"]`).click();
-    const selected = modeButtons.filter((button) => button.dataset.active === 'true');
+    const selected = modeButtons.filter((button) => button.classList.contains('is-selected'));
     assert.equal(selected.length, 1, `${theme}: one import option selected for ${mode}`);
     assert.equal(selected[0].dataset.import, mode);
     assert.equal(selected[0].getAttribute('aria-selected'), 'true');
@@ -31,18 +31,22 @@ for (const theme of ['light', 'dark']) {
     if (mode !== 'file') assert.match(window.document.querySelector('#pasteLabel').textContent, mode === 'headers' ? /headers/ : mode === 'body' ? /text\/body/ : /complete original/);
   }
 
-  window.document.querySelector('[data-import="help"]').click();
+  window.document.querySelector('[data-import="headers"]').click();
+  window.document.querySelector('#helpButton').click();
+  assert.equal(modeButtons.filter((button) => button.classList.contains('is-selected'))[0].dataset.import, 'headers');
   const guideButtons = [...window.document.querySelectorAll('[data-guide]')];
   const guideText = { gmail: /Show original/, outlook: /View message details/, thunderbird: /View Source/, apple: /All Headers/, other: /Save as \.eml/ };
   for (const client of ['gmail', 'outlook', 'thunderbird', 'apple', 'other', 'gmail']) {
     window.document.querySelector(`[data-guide="${client}"]`).click();
-    const selected = guideButtons.filter((button) => button.dataset.active === 'true');
+    const selected = guideButtons.filter((button) => button.classList.contains('is-selected'));
     assert.equal(selected.length, 1, `${theme}: one guide selected for ${client}`);
     assert.equal(selected[0].dataset.guide, client);
     assert.equal(selected[0].getAttribute('aria-selected'), 'true');
     assert.equal(guideButtons.filter((button) => button.getAttribute('aria-selected') === 'true').length, 1);
     assert.match(window.document.querySelector('#guideText').textContent, guideText[client]);
   }
+  window.document.querySelector('#helpCancel').click();
+  assert.equal(modeButtons.filter((button) => button.classList.contains('is-selected'))[0].dataset.import, 'headers');
   dom.window.close();
 }
 
