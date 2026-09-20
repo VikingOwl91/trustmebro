@@ -6,3 +6,5 @@ html[data-theme=dark]{--paper:#0a0d0b;--ink:#f4f1e9;--muted:#adb5ab;--panel:#111
 /* Selectable import and guide controls use explicit state, not position. */
 .import-buttons button[aria-selected="true"],.guide-tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
 .import-buttons button:first-child[aria-selected="false"]{background:transparent;color:var(--ink)}
+.import-buttons button[data-active="true"],.guide-tabs button[data-active="true"]{background:var(--ink);color:var(--paper)}
+.import-buttons button[data-active="false"]{background:transparent;color:var(--ink)}
