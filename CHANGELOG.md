@@ -2,6 +2,15 @@
 
 All notable public milestones for TRUSTMEBRO are documented here.
 
+## Unreleased — 2026-09-26
+
+- hardened MIME/header parsing, attachment deduplication, encoded header decoding and URL evidence
+- split HELO and MAIL FROM SPF, with structured authentication and alignment observations
+- clarified neutral finding labels and versioned local rule set (ruleVersion 3)
+- added explainable, deterministic concern signal score, explicitly not a phishing probability
+- expanded local regression tests, with optional private real-world fixtures kept out of Git
+- revised local-first roadmap; network enrichment and sanitized sharing remain future work
+
 ## v0.1 — 2026-09-20
 
 First public release.
