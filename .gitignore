@@ -1,0 +1,5 @@
+# Local email fixtures and generated workflow artifacts stay out of Git.
+upload/
+trustmebro-*.tar.gz
+node_modules/
+dist/
