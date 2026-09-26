@@ -4,6 +4,10 @@ All notable public milestones for TRUSTMEBRO are documented here.
 
 ## Unreleased — 2026-09-26
 
+- migrated the browser app to TypeScript with Bun static build, watch, typecheck and test scripts
+- added browser-bundled postal-mime MIME parsing and tldts Public Suffix List domain alignment
+- self-hosted DM Mono and Space Grotesk fonts with OFL license files; removed Google Fonts requests
+- ignored the local `test-mails/` fixture directory and retained fixture-free synthetic regression tests
 - hardened MIME/header parsing, attachment deduplication, encoded header decoding and URL evidence
 - split HELO and MAIL FROM SPF, with structured authentication and alignment observations
 - clarified neutral finding labels and versioned local rule set (ruleVersion 3)

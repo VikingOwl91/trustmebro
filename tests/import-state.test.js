@@ -2,14 +2,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { JSDOM } = require('jsdom');
 
-const html = fs.readFileSync('index.html', 'utf8').replace('<script src="app.js"></script>', '');
+const html = fs.readFileSync('index.html', 'utf8').replace('<script type="module" src="./app.ts"></script>', '');
 
 function boot(theme) {
   const dom = new JSDOM(html, { url: 'https://trustmebro.test/', runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom;
   window.matchMedia = () => ({ matches: theme === 'dark', addEventListener() {} });
+  window.scrollTo = () => {};
   window.navigator.clipboard = { writeText: async () => {} };
-  window.eval(fs.readFileSync('app.js', 'utf8'));
+  window.eval(fs.readFileSync('.build/app.js', 'utf8'));
   window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
   return dom;
 }

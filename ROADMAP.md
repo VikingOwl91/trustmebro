@@ -12,10 +12,7 @@ Make the privacy-first browser-local analyzer reliable and technically precise.
 
 - Parse and model headers/authentication, routing, MIME structure, body content, URLs, and attachments.
 - Keep findings explainable and reproducible.
-- Fix HTML/CSS fragments being incorrectly classified as headers (`gin-top`, `text-decoration`, and similar values).
-- Deduplicate attachments that are currently discovered through both `name=` and `filename=` parameters.
-- Separate HELO/EHLO SPF from MAIL FROM/Return-Path SPF so `auth.spf_missing` is unambiguous.
-- Preserve the two real-world “Verwertungsverfahren” mails as regression fixtures.
+- Keep committed parser regressions synthetic and fixture-independent; local private messages are optional, ignored, and only read by explicit opt-in.
 
 ## 2. Establish the evidence/report model
 
@@ -85,7 +82,9 @@ Create a fair competitor/capability matrix based on verifiable evidence rather t
 
 ## Completed local slice
 
-The local parser fixes, structured authentication evidence, MIME parameter handling, URL source/visible-text evidence, neutral finding IDs, and regression coverage for four known suspicious mails are implemented. Report rule version is now `3`; the assessment is versioned independently as `1`.
+The local parser fixes, structured authentication evidence, MIME parameter handling, URL source/visible-text evidence, neutral finding IDs, and regression coverage for local known-message patterns are implemented. Report rule version is `3`; the assessment is versioned independently as `2`.
+
+The browser app now uses a Bun static build and TypeScript entry point. MIME parsing uses `postal-mime`, organizational-domain alignment uses `tldts`, and fonts are served from local assets. No API client or backend calls are part of this slice; a future Go API remains a separate integration.
 
 ## Current next slice
 

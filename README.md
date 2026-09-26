@@ -62,17 +62,13 @@ Rules are deterministic and versioned. The report keeps the source completeness 
 
 ## Privacy model
 
-Email analysis happens in the browser. Raw messages, headers, bodies, extracted URLs and attachments are not sent to an analysis backend.
+Email analysis happens in the browser. Raw messages, headers, bodies, extracted URLs and attachments are not sent to an analysis service. Loading the hosted site is a separate request and may expose ordinary connection data to hosting and transport providers.
 
 TRUSTMEBRO does not use a remote reputation service or an LLM to decide whether an email is suspicious. Theme and locale preferences are stored locally in the browser.
 
 Normal requests required to load the hosted website are separate from email analysis. See the Privacy surface on the live site for the deployment-specific details and current review notes.
 
-## Built with ChatGPT Sites
-
-The current web application was developed and deployed using **ChatGPT Sites**. The application source is maintained in this repository.
-
-That does **not** mean an AI model analyzes your email: the analyzer itself is browser-side, deterministic and rule-based.
+The analyzer is browser-side, deterministic and rule-based. It does not use an AI model to assess email.
 
 ## What TRUSTMEBRO is not
 
@@ -82,18 +78,18 @@ A **LIMITED** analysis may not contain enough source material to run rules that 
 
 ## Development
 
-The project is intentionally small: HTML, CSS and browser-side JavaScript.
+The project uses TypeScript, Bun and a static browser build. MIME parsing and Public Suffix List domain handling use `postal-mime` and `tldts`. Google Fonts are self-hosted in `assets/fonts/` with their OFL licenses.
 
-The current regression tests use Node.js and JSDOM:
+Install the locked dependencies and run the static build:
 
 ```sh
-node tests/i18n.test.js
-node tests/import-state.test.js
-node tests/parser-regressions.test.js
-node regression-test.js
+bun install --frozen-lockfile
+bun run typecheck
+bun run test
+bun run build
 ```
 
-The tests cover locale detection/persistence, report re-rendering without re-analysis, import-mode state, acquisition-guide state, Light/Dark interaction behavior and parser/report regressions. They require JSDOM (`npm install --no-save jsdom`). Private real-world `.eml` fixtures can be placed in `upload/` for additional local checks; they are optional and are not committed.
+`bun run dev` watches and rebuilds the static site into `dist/`. The tests use Node.js and JSDOM to exercise the compiled browser bundle. They cover locale detection/persistence, report re-rendering, import and guide state, MIME nesting and transfer encoding, authentication alignment, score caps, reset behavior, and the production build. Synthetic test messages are inline in the tests, so a clean checkout does not need private fixtures. The normal test command never reads private mails. To opt into additional checks of local `.eml` files under `upload/` or `test-mails/`, run `TRUSTMEBRO_RUN_LOCAL_FIXTURES=1 bun run test`. Both folders are ignored by Git.
 
 ## Roadmap
 
