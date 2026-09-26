@@ -1,41 +1,92 @@
-# Roadmap
+# TRUSTMEBRO Roadmap
 
-TRUSTMEBRO follows a local-first, evidence-first design: deterministic analysis, explicit source completeness and no opaque verdicts.
+TRUSTMEBRO is a privacy-first `.eml` analyzer. Its guiding principle is:
 
-Roadmap items are directional, not commitments.
+> **Local by default → evidence over verdicts → network only by explicit action → sharing only sanitized + explicit consent → transparent data flows → zero ads**
 
-## v0.1 — current
+This roadmap records the current product direction. It is intentionally staged: the local analysis foundation comes before network-assisted features, sharing, and community intelligence.
 
-The first public release establishes the core product:
+## 1. Finish the local analysis base
 
-- browser-local `.eml` analysis
-- original-source, headers-only and body/text-only import paths
-- FULL / LIMITED source completeness
-- deterministic versioned rules with stable IDs
-- evidence-backed findings
-- JSON report export
-- English and German localization
-- Light / Dark / System themes
-- public ChatGPT Sites deployment at https://trustmebro.nachtigall.dev/
+Make the privacy-first browser-local analyzer reliable and technically precise.
 
-## v0.2 — planned / under consideration
+- Parse and model headers/authentication, routing, MIME structure, body content, URLs, and attachments.
+- Keep findings explainable and reproducible.
+- Fix HTML/CSS fragments being incorrectly classified as headers (`gin-top`, `text-decoration`, and similar values).
+- Deduplicate attachments that are currently discovered through both `name=` and `filename=` parameters.
+- Separate HELO/EHLO SPF from MAIL FROM/Return-Path SPF so `auth.spf_missing` is unambiguous.
+- Preserve the two real-world “Verwertungsverfahren” mails as regression fixtures.
 
-- deterministic **Concern Level** assessment without pretending to provide a probability
-- additional phishing and scam rules
-- larger fixture and regression corpus
-- stronger source-capability/applicability coverage
-- further report and evidence refinements
-- continued accessibility and keyboard-navigation polish
+## 2. Establish the evidence/report model
 
-Concern and source completeness should remain separate concepts: LIMITED input must not artificially make a suspicious message look safer.
+The report should show what was observed before it interprets what it may mean.
 
-## Later / exploratory
+- Separate raw observations and evidence from derived findings and verdicts.
+- Show the source, value, and reasoning for each notable observation.
+- Avoid opaque risk percentages or “TRUSTMEBRO says 97% phishing” scoring.
+- Make local processing and future network enrichment visibly distinct.
+- Expose data-flow facts such as `rawEmailUploaded: false`, `attachmentsUploaded: false`, and `externalRequests: 0`.
+- Add a deterministic, explainable concern assessment with category caps and weighted reasons. It is explicitly not a probability of phishing, scam, or safety.
 
-- `.msg` support if a robust browser-local parser is practical
-- `.mbox` import
-- additional forensic capabilities
-- carefully designed optional reputation enrichment without silently weakening the local-first privacy model
+## 3. Harden privacy UX and data-flow transparency
 
-## Non-goals
+- Keep email analysis fully local by default.
+- Make external requests and their purpose explicit whenever they exist.
+- Add consent patterns that identify the exact data leaving the browser.
+- For every optional network operation, show what is sent and what remains local.
+- Keep the product free of advertising networks, tracking scripts, telemetry, and “disable your ad blocker” flows.
 
-The project is not intended to become an opaque AI classifier, malware execution sandbox, or service that requires uploading raw email just to obtain a verdict.
+## 4. Add explicit network-assisted features
+
+The first network feature should be optional URL reputation enrichment.
+
+- Trigger it only through a separate, explicit user action.
+- Show a consent dialog naming the exact URL sent to the backend.
+- Keep the rest of the email local unless the user explicitly chooses otherwise.
+- Label network-enriched results separately from local analysis in the report.
+
+## 5. Build sanitized submit and share flows
+
+- Accept only explicitly user-submitted, sanitized reports.
+- Never upload the original email or attachments by default.
+- Provide a sanitization preview with “will be transferred” and “will remain local” sections.
+- Use the same sanitization pipeline for community submission and a future shareable/static report.
+- Make sharing “share sanitized report”, never “share my email”.
+
+## 6. Develop community threat intelligence
+
+Submitted reports are observations, not automatic truths or verdicts.
+
+Aggregate cautiously and transparently around:
+
+- recurring domains and Reply-To infrastructure;
+- campaigns and temporal clusters;
+- subject patterns and provider characteristics;
+- attachment and delivery patterns.
+
+Keep provenance, uncertainty, and aggregation boundaries visible.
+
+## 7. Publish capability transparency
+
+Create a fair competitor/capability matrix based on verifiable evidence rather than marketing claims.
+
+- Include sources, tested version, and test date.
+- Document Trustmebro’s capabilities and limitations equally.
+- Use `unknown` / `not documented` when a capability cannot be verified.
+- Do not frame the comparison as “we can, everyone else cannot”.
+
+## 8. Sustainable, non-invasive support
+
+- Keep the product zero-ads.
+- Offer optional, unobtrusive support through Ko-fi.
+- Use the existing playful wording:
+
+  > ☕ Feed the server hamsters — most analysis happens on your device, but the server hamsters still demand coffee.
+
+## Completed local slice
+
+The local parser fixes, structured authentication evidence, MIME parameter handling, URL source/visible-text evidence, neutral finding IDs, and regression coverage for four known suspicious mails are implemented. Report rule version is now `3`; the assessment is versioned independently as `1`.
+
+## Current next slice
+
+Before starting network, sharing, or community features, keep the local report contract stable and implement the explicit sanitization preview/consent flow for future submit and share actions.
