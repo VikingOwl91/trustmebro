@@ -11,8 +11,7 @@
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "test:cases": "bun tests/adapters.test.ts && node tests/adapters.integration.test.js && node tests/build-output.test.js && node tests/i18n.test.js && node tests/import-state.test.js && node tests/parser-regressions.test.js && node tests/regression.test.js",
-    "test": "bun run build:test && bun run build && bun run test:cases",
+    "test": "bun run build:test && bun run build && bun test",
     "test:local-fixtures": "TRUSTMEBRO_RUN_LOCAL_FIXTURES=1 bun run test",
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build"
   },
@@ -23,7 +22,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
-    "jsdom": "^30.1.1",
+    "@happy-dom/global-registrator": "^20.14.5",
+    "happy-dom": "^20.14.5",
     "typescript": "^7.0.2"
   }
 }

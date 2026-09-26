@@ -1,38 +1,28 @@
-const { JSDOM } = require('jsdom');
-const fs = require('node:fs');
-const assert = require('node:assert');
+import { afterEach, expect, test } from 'bun:test';
+import { assert } from './helpers/assert';
+import {
+  bootApplication,
+  closeAllWindows,
+  createEmailFile,
+  setFileInput,
+  waitForAnalysis,
+} from './helpers/dom';
+
+afterEach(closeAllWindows);
 
 function createWindow() {
-  const html = fs
-    .readFileSync('index.html', 'utf8')
-    .replace('<script type="module" src="./app.ts"></script>', '');
-  const dom = new JSDOM(html, {
-    url: 'https://trustmebro.test/',
-    runScripts: 'outside-only',
-    pretendToBeVisual: true,
-  });
-  const window = dom.window;
-  window.matchMedia = () => ({ matches: false, addEventListener() {} });
-  window.scrollTo = () => {};
-  window.navigator.clipboard = { writeText: async () => {} };
-  window.URL.createObjectURL = () => 'blob:test';
-  window.URL.revokeObjectURL = () => {};
-  window.HTMLAnchorElement.prototype.click = function () {};
-  window.eval(fs.readFileSync('.build/app.js', 'utf8'));
-  window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
-  return { window, input: window.document.querySelector('#fileInput') };
+  return bootApplication().window;
 }
 
 async function analyze(text) {
-  const { window, input } = createWindow();
-  const file = new window.File([text], 'fixture.eml', { type: 'message/rfc822' });
-  Object.defineProperty(input, 'files', { configurable: true, value: [file] });
-  input.dispatchEvent(new window.Event('change', { bubbles: true }));
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  const window = createWindow();
+  const done = waitForAnalysis(window);
+  setFileInput(window, createEmailFile(window, 'fixture.eml', text));
+  await done;
   return window;
 }
 
-(async () => {
+test('preserves MIME, authentication, URL, and scoring regressions', async () => {
   const cssBody = await analyze(
     [
       'From: sender@example.test',
@@ -191,14 +181,14 @@ async function analyze(text) {
       'Content-Type: text/html; charset=utf-8',
       'Content-Transfer-Encoding: base64',
       '',
-      Buffer.from('<p>HTML fallback https://html.example/path</p>').toString('base64'),
+      btoa('<p>HTML fallback https://html.example/path</p>'),
       '--inner-boundary--',
       '--outer-boundary',
       'Content-Type: application/octet-stream; name="notes.txt"',
       'Content-Disposition: attachment; filename="notes.txt"',
       'Content-Transfer-Encoding: base64',
       '',
-      Buffer.from('https://attachment.example/hidden million inheritance').toString('base64'),
+      btoa('https://attachment.example/hidden million inheritance'),
       '--outer-boundary--',
     ].join('\r\n'),
   );
@@ -227,7 +217,7 @@ async function analyze(text) {
       'Content-Disposition: attachment; filename="attached.txt"',
       'Content-Transfer-Encoding: base64',
       '',
-      Buffer.from('million donation https://text-attachment.example').toString('base64'),
+      btoa('million donation https://text-attachment.example'),
       '--message-parts',
       'Content-Type: message/rfc822',
       'Content-Disposition: attachment; filename="forwarded.eml"',
@@ -262,7 +252,7 @@ async function analyze(text) {
       'Content-Type: application/octet-stream; name="payload.txt"',
       'Content-Disposition: attachment; filename="payload.txt"',
       '',
-      Buffer.from('https://must-not-be-extracted.example and inheritance').toString('base64'),
+      btoa('https://must-not-be-extracted.example and inheritance'),
       '--only-attachment--',
     ].join('\n'),
   );
@@ -462,25 +452,19 @@ async function analyze(text) {
   assert.match(highScore.document.querySelector('#rawDetails').textContent, /high/);
   assert.equal(highScore.document.querySelector('#verdict').textContent, 'Likely suspicious');
 
-  if (process.env.TRUSTMEBRO_RUN_LOCAL_FIXTURES === '1') {
+  if (Bun.env.TRUSTMEBRO_RUN_LOCAL_FIXTURES === '1') {
     for (const fixtureDir of ['upload', 'test-mails']) {
-      const fixtures = fs.existsSync(fixtureDir)
-        ? fs.readdirSync(fixtureDir).filter((name) => name.toLowerCase().endsWith('.eml'))
-        : [];
+      const fixtures = [...new Bun.Glob('*.eml').scanSync(fixtureDir)];
       for (const fixture of fixtures) {
-        const reportWindow = await analyze(fs.readFileSync(`${fixtureDir}/${fixture}`, 'utf8'));
-        assert.equal(
-          reportWindow.document.querySelector('#report').classList.contains('hidden'),
+        const reportWindow = await analyze(await Bun.file(`${fixtureDir}/${fixture}`).text());
+        expect(reportWindow.document.querySelector('#report')?.classList.contains('hidden')).toBe(
           false,
         );
-        assert.match(reportWindow.document.querySelector('#assessment').textContent, /\/100/);
+        expect(reportWindow.document.querySelector('#assessment')?.textContent).toMatch(/\/100/);
       }
     }
   }
   console.log(
     'PASS: MIME nesting/decoding/isolation, PSL alignment, neutral metadata, score caps, and synthetic regression cases',
   );
-})().catch((error) => {
-  console.error(error);
-  process.exit(1);
 });

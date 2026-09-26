@@ -82,7 +82,7 @@ Each report records the adapter ID/version, input kind, supplied format, complet
 
 ## Development
 
-The project uses TypeScript, Bun and a static browser build. MIME parsing and Public Suffix List domain handling use `postal-mime` and `tldts`. Google Fonts are self-hosted in `assets/fonts/` with their OFL licenses.
+The project uses TypeScript, Bun and a static browser build. MIME parsing, HTML-fragment inspection and Public Suffix List domain handling use `postal-mime`, `parse5` and `tldts`. Google Fonts are self-hosted in `assets/fonts/` with their OFL licenses. Bun is the package manager, script runner, build tool and normal test runtime.
 
 Install the locked dependencies with Bun and run the CI validation suite:
 
@@ -92,9 +92,11 @@ bun run check
 bun run build
 ```
 
-`bun run dev` watches and rebuilds the static site into `dist/`. Bun builds the browser bundle and runs pure adapter tests. The existing JSDOM browser tests use Node because the current JSDOM runtime setup fails when evaluating the bundled app under Bun; they do not make external requests. Coverage includes adapter validation and provenance, locale rerendering, import state, MIME nesting and transfer encoding, authentication alignment, score caps, reset behavior and the static build. Synthetic messages are committed in tests. The standard check never reads private fixtures. To opt in to local `.eml` checks under `upload/` and `test-mails/`, run `bun run test:local-fixtures`; both directories are ignored by Git.
+`bun run dev` watches and rebuilds the static site into `dist/`. `bun run test` builds the app and runs all tests through `bun test`; Bun's test preload registers Happy DOM, and the production bundle is exercised in isolated browser-like windows. Test helpers wait for an application completion event rather than sleeping for a fixed duration. Coverage includes adapter validation and provenance, locale rerendering, accessible import state, MIME nesting and transfer encoding, authentication alignment, score caps, reset/race behavior, hostile HTML inertness, URL scheme filtering, object URL cleanup and the static build. A narrow test-only Blob adapter normalizes cross-realm ArrayBuffers because Happy DOM currently mishandles those standard Blob parts in its VM; test expectations remain unchanged. Synthetic messages are committed in tests. The standard check never reads private fixtures. To opt in to local `.eml` checks under `upload/` and `test-mails/`, run `bun run test:local-fixtures`; both directories are ignored by Git.
 
-Available scripts: `dev`, `build`, `build:test`, `typecheck`, `lint`, `lint:fix`, `format`, `format:check`, `test`, `test:cases`, `test:local-fixtures` and `check`. `check` runs non-writing format and lint checks, typechecking, regression tests and build validation. TypeScript strict checks are enabled except `noImplicitAny`, which remains disabled while older UI callbacks are incrementally typed.
+Supported browsers are current evergreen releases of Chromium, Firefox and Safari, including their maintained mobile versions. The app relies on interoperable ES modules, `TextDecoder`, Clipboard API on secure contexts, native file controls and standard DOM/CSS behavior. Obsolete browsers and legacy polyfill bundles are out of scope. The Happy DOM suite is a regression environment, not a substitute for a manual cross-browser visual/accessibility audit; WCAG conformance is not claimed.
+
+Available scripts: `dev`, `build`, `build:test`, `typecheck`, `lint`, `lint:fix`, `format`, `format:check`, `test`, `test:local-fixtures` and `check`. `check` runs formatting validation, lint, typechecking, the complete Bun test suite and a production build. TypeScript `strict` is enabled. `noImplicitAny` remains disabled for older unannotated functions in the monolithic UI/analyzer file; normalized adapters, report contracts, DOM query helper and input state have explicit types. `.msg` and MBOX are unsupported.
 
 ## Roadmap
 

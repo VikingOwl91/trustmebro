@@ -8,14 +8,15 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
 (() => {
   'use strict';
 
-  const $ = (selector: string): any => document.querySelector(selector);
+  const $ = <T extends Element = HTMLElement>(selector: string): T =>
+    document.querySelector<T>(selector)!;
   const root = document.documentElement;
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const state: {
     report: AnalysisReport | null;
     toastTimer: number | null;
-    importMode: string;
-    guideClient: string;
+    importMode: 'file' | 'source' | 'headers' | 'body';
+    guideClient: 'gmail' | 'outlook' | 'thunderbird' | 'apple' | 'other';
     helpOpen: boolean;
     locale: string;
     analysisId: number;
@@ -53,6 +54,7 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       'status.parsing': 'Parsing headers and extracting indicators locally…',
       'status.complete': 'Analysis complete. Email data was not transmitted.',
       'status.copied': 'Copied locally',
+      'status.copyUnavailable': 'Clipboard access is unavailable in this browser context.',
       'status.exported': 'JSON export created locally',
       'how.title': 'What happens to your email?',
       'how.parse': 'Parse locally',
@@ -236,6 +238,8 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       'status.parsing': 'Header werden gelesen und Indikatoren lokal extrahiert…',
       'status.complete': 'Analyse abgeschlossen. Maildaten wurden nicht übertragen.',
       'status.copied': 'Lokal kopiert',
+      'status.copyUnavailable':
+        'Zwischenablagezugriff ist in diesem Browserkontext nicht verfügbar.',
       'status.exported': 'JSON-Export lokal erstellt',
       'how.title': 'Was passiert mit deiner E-Mail?',
       'how.parse': 'Lokal parsen',
@@ -564,19 +568,13 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
 
   function init() {
     const zone = $('#dropzone');
-    const input = $('#fileInput');
+    const input = $<HTMLInputElement>('#fileInput');
     if (!zone || !input) return;
 
     initLocale();
     initTheme();
     initLegalSurface();
     initImportUI();
-    zone.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        input.click();
-      }
-    });
     zone.addEventListener('dragover', (event) => {
       event.preventDefault();
       zone.classList.add('drag');
@@ -618,6 +616,7 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       const control = document.createElement('div');
       control.id = 'language';
       control.className = 'language';
+      control.setAttribute('role', 'group');
       control.setAttribute('aria-label', t('nav.language'));
       control.innerHTML =
         '<button data-locale="de">DE</button><button data-locale="en">EN</button>';
@@ -834,6 +833,12 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
           } catch (error) {
             fail(adapterErrorMessage(error));
           }
+        } else {
+          document.dispatchEvent(
+            new CustomEvent('trustmebro:analysis-complete', {
+              detail: { analysisId, cancelled: true },
+            }),
+          );
         }
       })
       .catch(() => {
@@ -844,7 +849,6 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
   async function analyzeInput(input: NormalizedAnalysisInput, analysisId = ++state.analysisId) {
     try {
       setState(t('status.parsing'), 'busy');
-      await new Promise((resolve) => setTimeout(resolve, 80));
       if (analysisId !== state.analysisId) return;
       const parsed = await parse(input);
       if (analysisId !== state.analysisId) return;
@@ -891,6 +895,10 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       setState(t('status.complete'), 'success');
     } catch (error) {
       fail(t('error.failed', { error: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      document.dispatchEvent(
+        new CustomEvent('trustmebro:analysis-complete', { detail: { analysisId } }),
+      );
     }
   }
 
@@ -1132,6 +1140,7 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
         item.visibleTexts.push(visibleText);
     };
     if (html) {
+      // Treat message HTML as inert parser input. It is never attached to the live DOM.
       const fragment = parseFragment(html);
       type HtmlNode = DefaultTreeAdapterMap['node'];
       const children = (node: HtmlNode) => ('childNodes' in node ? node.childNodes : []);
@@ -1336,6 +1345,7 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     );
   }
 
+  // Dynamic templates are application-owned; all message-derived values go through esc().
   function render(report: AnalysisReport) {
     $('#report')?.classList.remove('hidden');
     $('#report')?.scrollIntoView?.({ behavior: 'smooth' });
@@ -1360,14 +1370,14 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     $('#summary').textContent = t('report.summary', { file: report.filename, date, summary });
     const completeness = $('.completeness');
     if (completeness && report.source) {
-      completeness.querySelector('strong').textContent = report.source.level;
+      completeness.querySelector<HTMLElement>('strong')!.textContent = report.source.level;
       const sourceText =
         report.source.level === 'FULL'
           ? t('report.full')
           : report.source.capabilities.body
             ? t('report.limitedBody')
             : t('report.limitedHeaders');
-      completeness.querySelector('span:last-child').textContent =
+      completeness.querySelector<HTMLElement>('span:last-child')!.textContent =
         report.body?.status === 'unavailable'
           ? `${sourceText} ${t('report.noReadableBody')}`
           : sourceText;
@@ -1397,16 +1407,19 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     }
     if (assessmentCard) {
       assessmentCard.classList.remove('hidden');
-      assessmentCard.querySelector('[data-assessment-score]').textContent =
+      assessmentCard.querySelector<HTMLElement>('[data-assessment-score]')!.textContent =
         `${t('assessment.score')}: ${assessment.score}/100`;
-      assessmentCard.querySelector('[data-assessment-level]').textContent = t(assessment.labelKey);
-      assessmentCard.querySelector('[data-i18n="assessment.heading"]').textContent =
+      assessmentCard.querySelector<HTMLElement>('[data-assessment-level]')!.textContent = t(
+        assessment.labelKey,
+      );
+      assessmentCard.querySelector<HTMLElement>('[data-i18n="assessment.heading"]')!.textContent =
         t('assessment.heading');
-      assessmentCard.querySelector('[data-assessment-method]').textContent = t('assessment.method');
-      assessmentCard.querySelector('[data-i18n="assessment.reasons"]').textContent =
+      assessmentCard.querySelector<HTMLElement>('[data-assessment-method]')!.textContent =
+        t('assessment.method');
+      assessmentCard.querySelector<HTMLElement>('[data-i18n="assessment.reasons"]')!.textContent =
         t('assessment.reasons');
-      assessmentCard.querySelector('[data-assessment-reasons]').innerHTML = assessment.reasons
-        .length
+      assessmentCard.querySelector<HTMLElement>('[data-assessment-reasons]')!.innerHTML = assessment
+        .reasons.length
         ? assessment.reasons
             .map(
               (reason) =>
@@ -1414,7 +1427,8 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
             )
             .join('')
         : `<li>${t('assessment.noReasons')}</li>`;
-      assessmentCard.querySelector('[data-assessment-bar]').style.width = `${assessment.score}%`;
+      assessmentCard.querySelector<HTMLElement>('[data-assessment-bar]')!.style.width =
+        `${assessment.score}%`;
     }
     const groups: Record<string, Finding[]> = {};
     report.findings.forEach((finding) => (groups[finding.category] ??= []).push(finding));
@@ -1568,17 +1582,17 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     const button = (event.target as Element).closest('[data-copy]') as HTMLElement | null;
     if (button) copyText(button.dataset.copy || '');
   }
-  function copyText(value) {
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(value);
-    else {
-      const area = document.createElement('textarea');
-      area.value = value;
-      document.body.append(area);
-      area.select();
-      document.execCommand('copy');
-      area.remove();
+  async function copyText(value: string) {
+    if (!navigator.clipboard?.writeText) {
+      toast(t('status.copyUnavailable'));
+      return;
     }
-    toast(t('status.copied'));
+    try {
+      await navigator.clipboard.writeText(value);
+      toast(t('status.copied'));
+    } catch {
+      toast(t('status.copyUnavailable'));
+    }
   }
   function copyReport() {
     if (state.report) copyText(JSON.stringify(state.report, null, 2));
@@ -1587,18 +1601,22 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     if (!state.report) return;
     const blob = new Blob([JSON.stringify(state.report, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
     link.download = 'trustmebro-report.json';
+    link.hidden = true;
+    document.body.append(link);
     link.click();
-    URL.revokeObjectURL(link.href);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
     toast(t('status.exported'));
   }
   function resetAnalysis() {
     state.analysisId += 1;
     clearReportView();
-    const fileInput = $('#fileInput');
+    const fileInput = $<HTMLInputElement>('#fileInput');
     if (fileInput) fileInput.value = '';
-    const pasteInput = $('#pasteInput');
+    const pasteInput = $<HTMLTextAreaElement>('#pasteInput');
     if (pasteInput) pasteInput.value = '';
     $('#pasteBox')?.classList.add('hidden');
     state.importMode = 'file';
@@ -1633,8 +1651,8 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     if (summary) summary.textContent = '';
     const completeness = $('.completeness');
     if (completeness) {
-      completeness.querySelector('strong').textContent = '—';
-      completeness.querySelector('span:last-child').textContent = '';
+      completeness.querySelector<HTMLElement>('strong')!.textContent = '—';
+      completeness.querySelector<HTMLElement>('span:last-child')!.textContent = '';
     }
     const dropTitle = $('#dropTitle');
     if (dropTitle) dropTitle.textContent = t('drop.title');
@@ -1690,6 +1708,7 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     setState(message, 'error');
     const title = $('#dropTitle');
     if (title) title.textContent = t('error.tryAgain');
+    document.dispatchEvent(new CustomEvent('trustmebro:analysis-complete'));
   }
   function demoText() {
     return `From: Mrs. Elizabeth A. Johnson <deh@dehglobal.com>\nTo: you@example.com\nReply-To: elizabethjohnson059@gmail.com\nReturn-Path: <bounce@mailer.example.net>\nSubject: Urgent charity donation opportunity\nDate: Sat, 20 Sep 2026 15:42:00 +0000\nReceived: from mail.example.net (203.0.113.42)\nAuthentication-Results: mx; dkim=none; spf=none; dmarc=none\nContent-Type: text/plain\n\nI am a 78-year-old widow and wish to donate $5.6 million. Please reply immediately to arrange this charitable transfer.`;
@@ -1713,13 +1732,15 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     const panel = document.createElement('div');
     panel.id = 'importChoices';
     panel.className = 'import-choices';
-    panel.innerHTML = `<span class="section-no">${t('import.label')}</span><strong>${t('import.heading')}</strong><div class="import-buttons" role="tablist" aria-label="${t('import.heading')}"><button type="button" role="tab" aria-selected="false" data-import="file">${t('import.file')}</button><button type="button" role="tab" aria-selected="false" data-import="source">${t('import.source')}</button><button type="button" role="tab" aria-selected="false" data-import="headers">${t('import.headers')}</button><button type="button" role="tab" aria-selected="false" data-import="body">${t('import.body')}</button><button id="helpButton" type="button">${t('import.help')}</button></div><p class="import-hint" id="importHint">${t('import.fileHint')}</p><div class="paste-box hidden" id="pasteBox"><label for="pasteInput" id="pasteLabel">${t('paste.source')}</label><textarea id="pasteInput" rows="7" spellcheck="false" placeholder="${t('paste.placeholder')}"></textarea><p class="import-hint" id="pasteHint"></p><div><button class="button" id="pasteAnalyze">${t('paste.analyze')}</button><button class="text-button" id="pasteCancel">${t('common.cancel')}</button></div></div><div class="help-box hidden" id="helpBox"><div class="help-heading"><strong>${t('help.title')}</strong><button class="text-button" id="helpCancel" type="button">${t('help.close')}</button></div><div class="guide-tabs" role="tablist" aria-label="${t('help.title')}"><button type="button" role="tab" aria-selected="false" data-guide="gmail">Gmail</button><button type="button" role="tab" aria-selected="false" data-guide="outlook">Outlook</button><button type="button" role="tab" aria-selected="false" data-guide="thunderbird">Thunderbird</button><button type="button" role="tab" aria-selected="false" data-guide="apple">Apple Mail</button><button type="button" role="tab" aria-selected="false" data-guide="other">Other</button></div><div id="guideText"></div></div>`;
-    const importGroup = panel.querySelector('.import-buttons')!;
-    importGroup.setAttribute('role', 'group');
-    importGroup.querySelectorAll<HTMLButtonElement>('[data-import]').forEach((button) => {
-      button.removeAttribute('role');
-      button.removeAttribute('aria-selected');
-      button.setAttribute('aria-pressed', 'false');
+    panel.innerHTML = `<span class="section-no">${t('import.label')}</span><h3 class="import-heading">${t('import.heading')}</h3><div class="import-buttons" role="group" aria-label="${t('import.heading')}" aria-describedby="importHint"><button type="button" aria-pressed="false" data-import="file">${t('import.file')}</button><button type="button" aria-pressed="false" data-import="source">${t('import.source')}</button><button type="button" aria-pressed="false" data-import="headers">${t('import.headers')}</button><button type="button" aria-pressed="false" data-import="body">${t('import.body')}</button><button id="helpButton" type="button">${t('import.help')}</button></div><p class="import-hint" id="importHint">${t('import.fileHint')}</p><div class="paste-box hidden" id="pasteBox"><label for="pasteInput" id="pasteLabel">${t('paste.source')}</label><textarea id="pasteInput" rows="7" spellcheck="false" placeholder="${t('paste.placeholder')}" aria-describedby="pasteHint"></textarea><p class="import-hint" id="pasteHint"></p><div><button class="button" id="pasteAnalyze">${t('paste.analyze')}</button><button class="text-button" id="pasteCancel">${t('common.cancel')}</button></div></div><div class="help-box hidden" id="helpBox"><div class="help-heading"><h3>${t('help.title')}</h3><button class="text-button" id="helpCancel" type="button">${t('help.close')}</button></div><div class="guide-tabs" role="group" aria-label="${t('help.title')}"><button type="button" aria-pressed="false" data-guide="gmail">Gmail</button><button type="button" aria-pressed="false" data-guide="outlook">Outlook</button><button type="button" aria-pressed="false" data-guide="thunderbird">Thunderbird</button><button type="button" aria-pressed="false" data-guide="apple">Apple Mail</button><button type="button" aria-pressed="false" data-guide="other">Other</button></div><div id="guideText" aria-live="polite"></div></div>`;
+    panel.querySelector<HTMLButtonElement>('#helpButton')?.setAttribute('aria-controls', 'helpBox');
+    panel.querySelector<HTMLButtonElement>('#helpButton')?.setAttribute('aria-expanded', 'false');
+    panel.querySelectorAll<HTMLButtonElement>('[data-import]').forEach((button) => {
+      button.setAttribute(
+        'aria-controls',
+        button.dataset.import === 'file' ? 'fileInput' : 'pasteBox',
+      );
+      button.setAttribute('aria-expanded', 'false');
     });
     drop.after(panel);
     const file = $('#fileInput');
@@ -1727,12 +1748,13 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       state[stateKey] = value;
       panel.querySelectorAll<HTMLElement>(selector).forEach((button) => {
         const selected = state[stateKey] === (button.dataset.import || button.dataset.guide);
-        button.setAttribute(
-          button.dataset.import ? 'aria-pressed' : 'aria-selected',
-          String(selected),
-        );
+        button.setAttribute('aria-pressed', String(selected));
+        if (button.dataset.import)
+          button.setAttribute(
+            'aria-expanded',
+            String(selected && button.dataset.import !== 'file'),
+          );
         button.classList.toggle('is-selected', selected);
-        if (button.getAttribute('role') === 'tab') button.tabIndex = selected ? 0 : -1;
       });
     };
     setActive('[data-import]', 'file', 'importMode');
@@ -1745,7 +1767,7 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
         if (mode === 'file') {
           setActive('[data-import]', 'file', 'importMode');
           $('#importHint').textContent = t('import.fileHint');
-          $('#pasteInput').value = '';
+          $<HTMLTextAreaElement>('#pasteInput').value = '';
           delete panel.dataset.mode;
           hidePanels();
           file.click();
@@ -1754,14 +1776,18 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
     );
     panel.querySelector<HTMLButtonElement>('#helpButton')!.onclick = () =>
       showHelp(state.guideClient);
-    panel.querySelector<HTMLButtonElement>('#helpCancel')!.onclick = hideHelp;
+    panel.querySelector<HTMLButtonElement>('#helpCancel')!.onclick = () => {
+      hideHelp();
+      panel.querySelector<HTMLButtonElement>('#helpButton')?.focus();
+    };
     panel.querySelector<HTMLButtonElement>('#pasteCancel')!.onclick = () => {
-      $('#pasteInput').value = '';
+      $<HTMLTextAreaElement>('#pasteInput').value = '';
       delete panel.dataset.mode;
       $('#pasteBox').classList.add('hidden');
+      panel.querySelector<HTMLButtonElement>('[data-import][aria-pressed="true"]')?.focus();
     };
     panel.querySelector<HTMLButtonElement>('#pasteAnalyze')!.onclick = () => {
-      const text = $('#pasteInput').value;
+      const text = $<HTMLTextAreaElement>('#pasteInput').value;
       const mode = panel.dataset.mode;
       try {
         const input =
@@ -1791,13 +1817,14 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       $('#pasteHint').textContent =
         `${t(mode === 'headers' ? 'paste.headersHint' : mode === 'body' ? 'paste.bodyHint' : 'paste.sourceHint')} ${t('paste.local')}`;
       if (changed) {
-        $('#pasteInput').value = '';
+        $<HTMLTextAreaElement>('#pasteInput').value = '';
         setState('');
       }
-      $('#pasteInput').focus();
+      $<HTMLTextAreaElement>('#pasteInput').focus();
     }
     function showHelp(client) {
       state.helpOpen = true;
+      panel.querySelector<HTMLButtonElement>('#helpButton')?.setAttribute('aria-expanded', 'true');
       setActive('[data-guide]', client, 'guideClient');
       $('#pasteBox').classList.add('hidden');
       $('#helpBox').classList.remove('hidden');
@@ -1810,9 +1837,11 @@ import type { AnalysisReport, Assessment, AuthenticationEvidence, Finding } from
       };
       $('#guideText').innerHTML =
         `<ol>${guides[client].map((key) => `<li>${esc(t(key))}</li>`).join('')}</ol><p class="muted">${t('help.recommended')}</p>`;
+      panel.querySelector<HTMLButtonElement>('[data-guide][aria-pressed="true"]')?.focus();
     }
     function hideHelp() {
       state.helpOpen = false;
+      panel.querySelector<HTMLButtonElement>('#helpButton')?.setAttribute('aria-expanded', 'false');
       $('#helpBox').classList.add('hidden');
     }
     function hidePanels() {

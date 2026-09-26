@@ -1,48 +1,25 @@
-const { JSDOM } = require('jsdom');
-const fs = require('node:fs');
-const assert = require('node:assert');
+import { afterEach, test } from 'bun:test';
+import { assert } from './helpers/assert';
+import { bootApplication, closeAllWindows, setFileInput, waitForAnalysis } from './helpers/dom';
 
-(async () => {
-  const html = fs
-    .readFileSync('index.html', 'utf8')
-    .replace('<script type="module" src="./app.ts"></script>', '');
-  const dom = new JSDOM(html, {
-    url: 'https://trustmebro.test/',
-    runScripts: 'outside-only',
-    pretendToBeVisual: true,
-  });
-  const { window: w } = dom;
-  const copied = [];
-  const exports = [];
-  w.matchMedia = () => ({ matches: false, addEventListener() {} });
-  w.scrollTo = () => {};
-  w.navigator.clipboard = { writeText: async (value) => copied.push(value) };
-  const NativeBlob = w.Blob;
-  w.Blob = class extends NativeBlob {
-    constructor(parts, options) {
-      super(parts, options);
-      if (options?.type === 'application/json') exports.push(parts.join(''));
-    }
-  };
-  w.URL.createObjectURL = () => 'blob:test';
-  w.URL.revokeObjectURL = () => {};
-  w.HTMLAnchorElement.prototype.click = function () {};
-  w.eval(fs.readFileSync('.build/app.js', 'utf8'));
-  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
-  const input = w.document.querySelector('#fileInput');
+afterEach(closeAllWindows);
+
+test('preserves import, reset, race, copy and export regressions', async () => {
+  const harness = bootApplication();
+  const { window: w } = harness;
+  const exports = harness.exportedReports;
+  const copied = harness.copiedText;
   const valid = `From: scammer@acme.com\nReply-To: victim@gmail.net\nSubject: Urgent donation\nAuthentication-Results: mx; spf=none; dkim=none\nReceived: from mail.acme.com (203.0.113.42)\n\nPlease reply immediately to claim a $5 million donation. https://evil.example/login`;
   function select(name, text, type = 'message/rfc822') {
     const file = new w.File([text], name, { type });
-    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
-    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+    const done = waitForAnalysis(w);
+    setFileInput(w, file);
+    return done;
   }
-  const wait = () => new Promise((resolve) => setTimeout(resolve, 300));
 
-  select('bad.eml', 'not an email');
-  await wait();
+  await select('bad.eml', 'not an email');
   assert.match(w.document.querySelector('#state').textContent, /complete message header block/);
-  select('sample.eml', valid);
-  await wait();
+  await select('sample.eml', valid);
   assert.equal(w.document.querySelector('#report').classList.contains('hidden'), false);
   assert.match(w.document.querySelector('#findingGroups').textContent, /From \/ Reply-To mismatch/);
   assert.match(
@@ -53,11 +30,17 @@ const assert = require('node:assert');
 
   w.document.querySelector('[data-import="source"]').click();
   w.document.querySelector('#pasteInput').value = valid;
+  let done = waitForAnalysis(w);
   w.document.querySelector('#pasteAnalyze').click();
-  await wait();
+  await done;
   assert.equal(w.document.querySelector('#pasteInput').value, valid);
   w.document.querySelector('#copyButton').click();
+  const exported = harness.waitForNextExport();
+  const revoked = harness.waitForNextRevocation();
   w.document.querySelector('#exportButton').click();
+  await exported;
+  await revoked;
+  assert.deepEqual(harness.createdObjectUrls, harness.revokedObjectUrls);
   assert.equal(copied.length, 1);
   assert.match(copied[0], /trustmebro\.report/);
   assert.equal(exports.length, 1);
@@ -89,11 +72,15 @@ const assert = require('node:assert');
         releaseRead = resolve;
       }),
   });
-  Object.defineProperty(input, 'files', { configurable: true, value: [pendingFile] });
-  input.dispatchEvent(new w.Event('change', { bubbles: true }));
+  Object.defineProperty(w.document.querySelector('#fileInput'), 'files', {
+    configurable: true,
+    value: [pendingFile],
+  });
+  w.document.querySelector('#fileInput').dispatchEvent(new w.Event('change', { bubbles: true }));
+  const staleReadFinished = waitForAnalysis(w);
   w.document.querySelector('#resetButton').click();
   releaseRead(valid);
-  await wait();
+  await staleReadFinished;
   assert.equal(w.document.querySelector('#report').classList.contains('hidden'), true);
   assert.equal(w.document.querySelector('#findingGroups').textContent, '');
   assert.equal(copied.length, 1);
@@ -101,7 +88,4 @@ const assert = require('node:assert');
   console.log(
     'PASS: malformed -> valid .eml -> report -> copy/export -> reset clears inputs and analysis state',
   );
-})().catch((error) => {
-  console.error(error);
-  process.exit(1);
 });

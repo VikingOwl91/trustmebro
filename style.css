@@ -202,12 +202,21 @@ code {
 }
 .drop:hover,
 .drop.drag,
-.drop:focus-visible {
+.drop:focus-within {
   background: var(--soft);
   border-color: var(--ink);
 }
 .drop input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
 }
 .drop-icon {
   font-size: 42px;
@@ -648,7 +657,7 @@ html[data-theme="dark"] .drop {
 }
 html[data-theme="dark"] .drop:hover,
 html[data-theme="dark"] .drop.drag,
-html[data-theme="dark"] .drop:focus-visible {
+html[data-theme="dark"] .drop:focus-within {
   background: var(--soft);
 }
 html[data-theme="dark"] .stat {
@@ -838,10 +847,13 @@ html[data-theme="dark"] .button:focus-visible {
   border-top: 1px solid var(--line);
   padding-top: 18px;
 }
-.import-choices > strong {
+.import-choices > .import-heading {
   display: block;
   font-size: 20px;
   margin: 8px 0 12px;
+}
+.help-heading h3 {
+  margin: 0;
 }
 .import-buttons {
   display: flex;

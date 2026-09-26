@@ -4,6 +4,12 @@ All notable public milestones for TRUSTMEBRO are documented here.
 
 ## Unreleased — 2026-09-26
 
+- moved the complete normal test suite to Bun's native test runner and Happy DOM; removed JSDOM and its Node invocation
+- added a shared isolated browser-test harness with analysis/export completion signals, global cleanup, and unchanged regression assertions
+- replaced import-mode tab roles with native pressed buttons, associated descriptions and predictable focus; made file selection keyboard reachable through the native file input
+- kept hostile email HTML inert, tested active-scheme filtering and zero email-triggered fetches, and revoked explicit export object URLs after the download action
+- removed the deprecated clipboard fallback and report success now reflects Clipboard API availability
+- documented evergreen browser support, reduced-motion support, and the remaining manual accessibility review boundary
 - made Bun the project toolchain and added Biome formatting/linting, strict-null typechecking, aggregate checks and GitHub Actions CI
 - added explicit `.eml`, raw-source, headers-only and body-only adapters with input validation and mode-specific guidance
 - recorded adapter provenance and available capabilities in the backwards-compatible `trustmebro.report/v0.1` source object

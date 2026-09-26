@@ -1,57 +1,33 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const { JSDOM } = require('jsdom');
+import { afterEach, test } from 'bun:test';
+import { assert } from './helpers/assert';
+import {
+  bootApplication,
+  closeAllWindows,
+  createEmailFile,
+  exportReport,
+  setFileInput,
+  waitForAnalysis,
+} from './helpers/dom';
 
-const html = fs
-  .readFileSync('index.html', 'utf8')
-  .replace('<script type="module" src="./app.ts"></script>', '');
-const dom = new JSDOM(html, {
-  url: 'https://trustmebro.test/',
-  runScripts: 'outside-only',
-  pretendToBeVisual: true,
-});
-const { window } = dom;
-window.matchMedia = () => ({ matches: false, addEventListener() {} });
-window.scrollTo = () => {};
-window.navigator.clipboard = { writeText: async () => {} };
-const exportedReports = [];
-const NativeBlob = window.Blob;
-window.Blob = class extends NativeBlob {
-  constructor(parts, options) {
-    super(parts, options);
-    if (options?.type === 'application/json') exportedReports.push(parts.join(''));
-  }
-};
-window.URL.createObjectURL = () => 'blob:test';
-window.URL.revokeObjectURL = () => {};
-window.HTMLAnchorElement.prototype.click = function () {};
-window.eval(fs.readFileSync('.build/app.js', 'utf8'));
-window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
+afterEach(closeAllWindows);
 
-const wait = () => new Promise((resolve) => setTimeout(resolve, 150));
-const exportReport = () => {
-  window.document.querySelector('#exportButton').click();
-  return JSON.parse(exportedReports.at(-1));
-};
-const source = [
-  'From: sender@acme.com',
-  'Reply-To: sender@acme.com',
-  'Authentication-Results: mx; spf=pass smtp.mailfrom=acme.com; dkim=pass header.d=acme.com; dmarc=pass',
-  'Received: from mx.acme.com',
-  'Content-Type: text/plain; charset=utf-8',
-  '',
-  'Routine account update. Visit https://acme.com/status for details.',
-].join('\r\n');
+test('normalizes each input adapter through the UI and exports provenance', async () => {
+  const harness = bootApplication();
+  const { window } = harness;
+  const source = [
+    'From: sender@acme.com',
+    'Reply-To: sender@acme.com',
+    'Authentication-Results: mx; spf=pass smtp.mailfrom=acme.com; dkim=pass header.d=acme.com; dmarc=pass',
+    'Received: from mx.acme.com',
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    'Routine account update. Visit https://acme.com/status for details.',
+  ].join('\r\n');
 
-(async () => {
-  const fileInput = window.document.querySelector('#fileInput');
-  Object.defineProperty(fileInput, 'files', {
-    configurable: true,
-    value: [new window.File([source], 'sample.eml', { type: 'message/rfc822' })],
-  });
-  fileInput.dispatchEvent(new window.Event('change', { bubbles: true }));
-  await wait();
-  const fileReport = exportReport();
+  let done = waitForAnalysis(window);
+  setFileInput(window, createEmailFile(window, 'sample.eml', source));
+  await done;
+  const fileReport = await exportReport(harness);
   assert.equal(fileReport.source.adapter.id, 'eml-file');
   assert.equal(fileReport.source.adapter.version, '1');
   assert.equal(fileReport.source.adapter.inputKind, 'file');
@@ -73,9 +49,10 @@ const source = [
 
   window.document.querySelector('[data-import="source"]').click();
   window.document.querySelector('#pasteInput').value = source;
+  done = waitForAnalysis(window);
   window.document.querySelector('#pasteAnalyze').click();
-  await wait();
-  const rawReport = exportReport();
+  await done;
+  const rawReport = await exportReport(harness);
   assert.equal(rawReport.source.adapter.id, 'raw-source');
   assert.deepEqual(rawReport.findings, fileReport.findings);
   assert.deepEqual(rawReport.assessment, fileReport.assessment);
@@ -90,9 +67,10 @@ const source = [
   );
   window.document.querySelector('#pasteInput').value =
     'From: sender@acme.com\nReceived: from mx.acme.com\nSubject: Header-only sample\n\nReceived: forged.example\nmargin-top: 1px\nhttps://must-not-be-read.example';
+  done = waitForAnalysis(window);
   window.document.querySelector('#pasteAnalyze').click();
-  await wait();
-  const headersReport = exportReport();
+  await done;
+  const headersReport = await exportReport(harness);
   assert.equal(headersReport.source.level, 'LIMITED');
   assert.equal(headersReport.source.adapter.id, 'headers');
   assert.equal(headersReport.source.capabilities.body, false);
@@ -103,9 +81,10 @@ const source = [
   window.document.querySelector('[data-import="body"]').click();
   window.document.querySelector('#pasteInput').value =
     'Subject: This stays body text\nReceived: forged route\nA million dollar donation is urgent. https://body.example/path';
+  done = waitForAnalysis(window);
   window.document.querySelector('#pasteAnalyze').click();
-  await wait();
-  const bodyReport = exportReport();
+  await done;
+  const bodyReport = await exportReport(harness);
   assert.equal(bodyReport.source.level, 'LIMITED');
   assert.equal(bodyReport.source.adapter.id, 'body');
   assert.equal(bodyReport.source.capabilities.headers, false);
@@ -136,12 +115,11 @@ const source = [
   window.document.querySelector('#pasteAnalyze').click();
   assert.match(window.document.querySelector('#state').textContent, /Paste some message material/);
 
-  Object.defineProperty(fileInput, 'files', {
-    configurable: true,
-    value: [new window.File(['anything'], 'unsupported.msg', { type: 'application/octet-stream' })],
-  });
-  fileInput.dispatchEvent(new window.Event('change', { bubbles: true }));
-  await wait();
+  setFileInput(
+    window,
+    new window.File(['anything'], 'unsupported.msg', { type: 'application/octet-stream' }),
+  );
+  await Promise.resolve();
   assert.match(
     window.document.querySelector('#state').textContent,
     /Outlook .msg is not supported/,
@@ -149,7 +127,4 @@ const source = [
   console.log(
     'PASS: adapter UI paths, capability provenance, mode isolation and local-only report contract',
   );
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
 });

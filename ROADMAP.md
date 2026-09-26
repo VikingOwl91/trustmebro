@@ -88,6 +88,8 @@ The browser app now uses a Bun static build and TypeScript entry point. MIME par
 
 The stabilization slice adds first-class `.eml`, raw-source, headers-only and body-only adapters. Each adapter normalizes input and publishes source completeness and capabilities in the `trustmebro.report/v0.1` report. Bun is the canonical toolchain for formatting, linting, typechecking, tests and builds; CI runs the frozen install and validation scripts. No email content, attachments or URLs are sent externally.
 
+The browser regression suite now runs entirely under Bun's test runner with Happy DOM. JSDOM and the Node test invocation were removed. Current evergreen browsers are the support target; automated DOM tests do not replace visual and assistive-technology review. The remaining type-safety cleanup is isolated to unannotated functions in the existing monolithic `app.ts`.
+
 ## Current next slice
 
 Before starting backend, URL reputation, sharing or community-intelligence work, keep the local analysis slice stable and review this adapter/report contract. Those network and sharing features remain out of scope for the current local-only release.
