@@ -23,6 +23,9 @@ The current public release supports:
 - MIME, header, URL and attachment extraction when the source contains them
 - deterministic, versioned findings with stable rule IDs
 - evidence-backed explanations
+- structured SPF (HELO and MAIL FROM), DKIM and DMARC observations
+- explainable, deterministic 0–100 signal score (not a phishing probability)
+- URL sources, link destinations, visible link text and attachment metadata
 - reproducible JSON report export
 - English and German UI
 - Light / Dark / System themes
@@ -30,9 +33,9 @@ The current public release supports:
 
 Example rule ID:
 
-`identity.from_replyto_mismatch@1`
+`identity.from_replyto_mismatch@3`
 
-Missing evidence is treated as unavailable, not as evidence that a message is safe.
+Missing evidence is treated as unavailable, not as evidence that a message is safe. The signal score describes rule-based concern, not certainty that an email is phishing, a scam, or safe.
 
 ## How it works
 
@@ -86,9 +89,11 @@ The current regression tests use Node.js and JSDOM:
 ```sh
 node tests/i18n.test.js
 node tests/import-state.test.js
+node tests/parser-regressions.test.js
+node regression-test.js
 ```
 
-The tests cover locale detection/persistence, report re-rendering without re-analysis, import-mode state, acquisition-guide state and Light/Dark interaction behavior.
+The tests cover locale detection/persistence, report re-rendering without re-analysis, import-mode state, acquisition-guide state, Light/Dark interaction behavior and parser/report regressions. They require JSDOM (`npm install --no-save jsdom`). Private real-world `.eml` fixtures can be placed in `upload/` for additional local checks; they are optional and are not committed.
 
 ## Roadmap
 
@@ -100,4 +105,4 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-No license has been selected yet. Until that changes, the source is publicly visible but no open-source license is granted by this repository.
+No license has been selected yet. Until that changes, no open-source license is granted by this repository.
