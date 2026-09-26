@@ -4,6 +4,10 @@ All notable public milestones for TRUSTMEBRO are documented here.
 
 ## Unreleased — 2026-09-26
 
+- made Bun the project toolchain and added Biome formatting/linting, strict-null typechecking, aggregate checks and GitHub Actions CI
+- added explicit `.eml`, raw-source, headers-only and body-only adapters with input validation and mode-specific guidance
+- recorded adapter provenance and available capabilities in the backwards-compatible `trustmebro.report/v0.1` source object
+- expanded synthetic adapter regressions while keeping private fixture checks opt-in and excluded from CI
 - migrated the browser app to TypeScript with Bun static build, watch, typecheck and test scripts
 - added browser-bundled postal-mime MIME parsing and tldts Public Suffix List domain alignment
 - self-hosted DM Mono and Space Grotesk fonts with OFL license files; removed Google Fonts requests

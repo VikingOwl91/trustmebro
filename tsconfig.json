@@ -4,10 +4,11 @@
     "module": "Preserve",
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "strict": false,
+    "strict": true,
+    "noImplicitAny": false,
     "noEmit": true,
     "skipLibCheck": true,
     "allowJs": false
   },
-  "include": ["app.ts"]
+  "include": ["app.ts", "input-types.ts", "input-adapters.ts", "report-types.ts"]
 }

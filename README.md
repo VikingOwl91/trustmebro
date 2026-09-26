@@ -19,6 +19,7 @@ The current public release supports:
 - local `.eml` analysis
 - pasted original message/source
 - headers-only and body/text-only analysis
+- adapter provenance and per-source analysis capabilities in the JSON report
 - explicit **FULL / LIMITED** source completeness
 - MIME, header, URL and attachment extraction when the source contains them
 - deterministic, versioned findings with stable rule IDs
@@ -40,22 +41,16 @@ Missing evidence is treated as unavailable, not as evidence that a message is sa
 ## How it works
 
 ```text
-email material
+file or paste mode
       |
       v
- parse locally
+input adapter -> normalized input
       |
       v
-extract evidence
+parse and analyze locally
       |
       v
- apply rules
-      |
-      v
-explain findings
-      |
-      v
- export report
+explained report + evidence
 ```
 
 Rules are deterministic and versioned. The report keeps the source completeness visible so a partial input cannot silently masquerade as a full analysis.
@@ -76,20 +71,30 @@ TRUSTMEBRO is not a guarantee that an email is safe, a malware sandbox, an attac
 
 A **LIMITED** analysis may not contain enough source material to run rules that require headers, authentication results, routing information, MIME structure or attachment metadata.
 
+### Input adapters
+
+- `.eml` file and complete original-source paste use the same MIME parser and produce **FULL** input when a header block and message separator are present.
+- Headers-only paste stops at the first blank line. It provides headers, authentication and routing; body, URLs, attachments and MIME body analysis are unavailable.
+- Body-only paste is wrapped as plain text for parsing. It provides body and URL checks; lines such as `Subject:` and `Received:` remain body text and are not treated as headers.
+- `.msg`, MBOX and provider-specific exports are not supported.
+
+Each report records the adapter ID/version, input kind, supplied format, completeness and capability flags. The report schema remains `trustmebro.report/v0.1`; email contents are not included in the exported report.
+
 ## Development
 
 The project uses TypeScript, Bun and a static browser build. MIME parsing and Public Suffix List domain handling use `postal-mime` and `tldts`. Google Fonts are self-hosted in `assets/fonts/` with their OFL licenses.
 
-Install the locked dependencies and run the static build:
+Install the locked dependencies with Bun and run the CI validation suite:
 
 ```sh
 bun install --frozen-lockfile
-bun run typecheck
-bun run test
+bun run check
 bun run build
 ```
 
-`bun run dev` watches and rebuilds the static site into `dist/`. The tests use Node.js and JSDOM to exercise the compiled browser bundle. They cover locale detection/persistence, report re-rendering, import and guide state, MIME nesting and transfer encoding, authentication alignment, score caps, reset behavior, and the production build. Synthetic test messages are inline in the tests, so a clean checkout does not need private fixtures. The normal test command never reads private mails. To opt into additional checks of local `.eml` files under `upload/` or `test-mails/`, run `TRUSTMEBRO_RUN_LOCAL_FIXTURES=1 bun run test`. Both folders are ignored by Git.
+`bun run dev` watches and rebuilds the static site into `dist/`. Bun builds the browser bundle and runs pure adapter tests. The existing JSDOM browser tests use Node because the current JSDOM runtime setup fails when evaluating the bundled app under Bun; they do not make external requests. Coverage includes adapter validation and provenance, locale rerendering, import state, MIME nesting and transfer encoding, authentication alignment, score caps, reset behavior and the static build. Synthetic messages are committed in tests. The standard check never reads private fixtures. To opt in to local `.eml` checks under `upload/` and `test-mails/`, run `bun run test:local-fixtures`; both directories are ignored by Git.
+
+Available scripts: `dev`, `build`, `build:test`, `typecheck`, `lint`, `lint:fix`, `format`, `format:check`, `test`, `test:cases`, `test:local-fixtures` and `check`. `check` runs non-writing format and lint checks, typechecking, regression tests and build validation. TypeScript strict checks are enabled except `noImplicitAny`, which remains disabled while older UI callbacks are incrementally typed.
 
 ## Roadmap
 

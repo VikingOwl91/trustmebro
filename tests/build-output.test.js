@@ -13,7 +13,11 @@ assert.doesNotMatch(css, /fonts\.googleapis\.com|fonts\.gstatic\.com/i);
 assert.match(css, /data:font\/woff2/);
 
 const html = output.replace(/<script\b[^>]*>[^<]*<\/script>/gi, '');
-const dom = new JSDOM(html, { url: 'https://trustmebro.test/', runScripts: 'outside-only', pretendToBeVisual: true });
+const dom = new JSDOM(html, {
+  url: 'https://trustmebro.test/',
+  runScripts: 'outside-only',
+  pretendToBeVisual: true,
+});
 const { window } = dom;
 window.matchMedia = () => ({ matches: false, addEventListener() {} });
 window.scrollTo = () => {};
@@ -25,6 +29,9 @@ window.document.querySelector('#demoButton').click();
 setTimeout(() => {
   assert.equal(window.document.querySelector('#report').classList.contains('hidden'), false);
   assert.equal(window.document.documentElement.lang, 'en');
-  assert.doesNotMatch(window.document.documentElement.innerHTML, /fonts\.googleapis\.com|fonts\.gstatic\.com/i);
+  assert.doesNotMatch(
+    window.document.documentElement.innerHTML,
+    /fonts\.googleapis\.com|fonts\.gstatic\.com/i,
+  );
   console.log('PASS: built static page runs its demo and contains no remote font references');
 }, 300);

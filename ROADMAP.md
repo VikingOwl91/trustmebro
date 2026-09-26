@@ -86,6 +86,8 @@ The local parser fixes, structured authentication evidence, MIME parameter handl
 
 The browser app now uses a Bun static build and TypeScript entry point. MIME parsing uses `postal-mime`, organizational-domain alignment uses `tldts`, and fonts are served from local assets. No API client or backend calls are part of this slice; a future Go API remains a separate integration.
 
+The stabilization slice adds first-class `.eml`, raw-source, headers-only and body-only adapters. Each adapter normalizes input and publishes source completeness and capabilities in the `trustmebro.report/v0.1` report. Bun is the canonical toolchain for formatting, linting, typechecking, tests and builds; CI runs the frozen install and validation scripts. No email content, attachments or URLs are sent externally.
+
 ## Current next slice
 
-Before starting network, sharing, or community features, keep the local report contract stable and implement the explicit sanitization preview/consent flow for future submit and share actions.
+Before starting backend, URL reputation, sharing or community-intelligence work, keep the local analysis slice stable and review this adapter/report contract. Those network and sharing features remain out of scope for the current local-only release.
